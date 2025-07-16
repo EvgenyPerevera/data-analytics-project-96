@@ -86,7 +86,6 @@ SELECT
     a.utm_medium,
     a.utm_campaign,
     a.visitors_count,
-    COALESCE(c.cost, 0) AS total_cost,
     a.leads_count,
     a.purchases_count,
     a.revenue
