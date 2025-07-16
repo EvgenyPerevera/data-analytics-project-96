@@ -59,5 +59,5 @@ ORDER BY
     visit_date ASC,
     utm_source ASC NULLS LAST,
     utm_medium ASC NULLS LAST,
-    utm_campaign ASC NULLS LAST
+    utm_campaign ASC NULLS last
 LIMIT 10;
