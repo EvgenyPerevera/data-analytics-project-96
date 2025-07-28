@@ -64,7 +64,7 @@ GROUP BY created_date;
 
 
 
--- Количество посещений по платным каналам (visits_count_source_no_organic)
+-- Количество посещений по платным каналам 
 SELECT
     to_char(visit_date, 'yyyy-mm-dd')::date AS visit_day,
     source,
