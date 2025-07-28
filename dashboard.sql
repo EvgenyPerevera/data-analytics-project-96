@@ -10,32 +10,12 @@ SELECT
 FROM sessions
 GROUP BY v_date;
 
-	--Уникальные пользователи по дням/неделям/месяцам
-/* SELECT
-    DATE_TRUNC('day', visit_date) AS day,
-    COUNT(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-GROUP BY 1
-ORDER BY 1;
 
-SELECT
-    DATE_TRUNC('week', visit_date) AS day,
-    COUNT(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-GROUP BY 1
-ORDER BY 1;
 
-SELECT
-    DATE_TRUNC('month', visit_date) AS day,
-    COUNT(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-GROUP BY 1
-ORDER BY 1;
-FROM sessions;*/
 
 -- Какие каналы приводят пользователей (по дням/неделям/месяцам)
 SELECT
-    DATE_TRUNC('day', visit_date) AS week,
+    DATE_TRUNC('day', visit_date) AS day,
     LOWER(source) AS utm_source,
     LOWER(medium) AS utm_medium,
     COUNT(DISTINCT visitor_id) AS visitors_count
@@ -53,7 +33,7 @@ GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3;
 
 SELECT
-    DATE_TRUNC('month', visit_date) AS week,
+    DATE_TRUNC('month', visit_date) AS month,
     LOWER(source) AS utm_source,
     LOWER(medium) AS utm_medium,
     COUNT(DISTINCT visitor_id) AS visitors_count
@@ -61,17 +41,10 @@ FROM sessions
 GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3;
 
--- Какие каналы приводят на сайт пользователей?
--- Количество посещений на сайте по дням (visits_count_for_day)
-/*SELECT
-    to_char(visit_date, 'yyyy-mm-dd')::date AS visit_day,
-    source,
-    medium,
-    campaign,
-    count(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-GROUP BY to_char(visit_date, 'yyyy-mm-dd')::date, source, medium, campaign
-ORDER BY visit_day ASC, visitors_count DESC;*/
+
+
+
+
 
 -- Сколько лидов приходит 
 SELECT 
@@ -86,6 +59,11 @@ FROM leads
 GROUP BY created_date;
 
 
+
+
+
+
+
 -- Количество посещений по платным каналам (visits_count_source_no_organic)
 SELECT
     to_char(visit_date, 'yyyy-mm-dd')::date AS visit_day,
@@ -97,6 +75,7 @@ FROM sessions
 WHERE medium != 'organic'
 GROUP BY to_char(visit_date, 'yyyy-mm-dd')::date, source, medium, campaign
 ORDER BY visit_day ASC, visitors_count DESC;
+
 
 --Расходы по каналам в динамике (по датам)
 SELECT 
@@ -116,13 +95,15 @@ ORDER BY campaign_date, utm_source;
 
 
 -- Расходы по источникам
-SELECT utm_source, SUM(daily_spent) AS total_spent
-    FROM (
+SELECT 
+    utm_source, 
+    SUM(daily_spent) AS total_spent
+FROM (
         SELECT utm_source, daily_spent FROM ya_ads
         UNION ALL
         SELECT utm_source, daily_spent FROM vk_ads
-    ) AS ads
-    GROUP BY utm_source;
+) AS ads
+GROUP BY 1;
 
 -- Доходы по источникам
 SELECT
@@ -139,10 +120,9 @@ WHERE
 GROUP BY utm_source;
 
 -- roi = (revenue - total_cost) / total_cost * 100%
-
-vk=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.89%
-yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%
-
+roi = (8752676 - 6428804)/6428804 * 100 = 36,15%
+roi vk=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
+roi yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%
 
 
 
@@ -202,6 +182,15 @@ WHERE closing_reason = 'Успешно реализовано'
    OR status_id = 142;
 
 6428804/205=31.360
+
+-- roi = (revenue - total_cost) / total_cost * 100%
+
+
+roi = (8752676 - 6428804)/6428804 * 100 = 36,15%
+roi vk=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
+roi yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%
+
+
 
 -- По utm_sourse
 SELECT
