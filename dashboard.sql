@@ -90,6 +90,62 @@ WHERE LOWER(s.source) IN ('vk', 'yandex')
 GROUP BY LOWER(s.source)
 ORDER BY leads_count DESC;
 
+--Конверсия Клик-Лид-Продажа для ВК и Яндекс 
+
+WITH filtered_visitors AS (
+    SELECT DISTINCT s.visitor_id, LOWER(s.source) AS channel
+    FROM sessions s
+    WHERE LOWER(s.source) IN ('vk', 'yandex')
+),
+leads_stats AS (
+    SELECT 
+        f.channel,
+        COUNT(DISTINCT l.lead_id) AS total_leads,
+        COUNT(DISTINCT l.lead_id) FILTER (
+            WHERE l.closing_reason = 'Успешная продажа'
+        ) AS successful_sales
+    FROM leads l
+    JOIN filtered_visitors f
+      ON l.visitor_id = f.visitor_id
+    GROUP BY f.channel
+),
+visitors_count AS (
+    SELECT 
+        LOWER(source) AS channel, 
+        COUNT(DISTINCT visitor_id) AS total_visitors
+    FROM sessions
+    WHERE LOWER(source) IN ('vk', 'yandex')
+    GROUP BY LOWER(source)
+),
+funnel_raw AS (
+    SELECT
+        v.channel,
+        'Visitors' AS stage,
+        v.total_visitors AS value
+    FROM visitors_count v
+    UNION ALL
+    SELECT
+        l.channel,
+        'Leads' AS stage,
+        l.total_leads AS value
+    FROM leads_stats l
+    UNION ALL
+    SELECT
+        l.channel,
+        'Successful sales' AS stage,
+        l.successful_sales AS value
+    FROM leads_stats l
+)
+SELECT *
+FROM funnel_raw
+ORDER BY channel,
+         CASE stage
+             WHEN 'Visitors' THEN 1
+             WHEN 'Leads' THEN 2
+             WHEN 'Successful sales' THEN 3
+         END;
+         END;
+
 
 --КОНВЕРСИЯ ИЗ КЛИКА В ЛИД
 
@@ -316,5 +372,6 @@ WHERE l.closing_reason = 'Успешно реализовано'
 GROUP BY s.source
 
 ORDER BY purchases_count DESC;
+
 
 
