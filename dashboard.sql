@@ -129,6 +129,30 @@ SELECT
 FROM leads;
 
 
+--Конверсия Клик-Лид-продажа
+
+WITH visitors_count AS (
+    SELECT COUNT(DISTINCT visitor_id) AS total_visitors
+    FROM sessions
+),
+leads_stats AS (
+    SELECT
+        COUNT(DISTINCT l.lead_id) AS total_leads,
+        COUNT(DISTINCT l.lead_id) FILTER (
+            WHERE l.closing_reason = 'Успешная продажа'
+        ) AS successful_sales
+    FROM leads l
+)
+SELECT 'Visitors' AS stage, v.total_visitors AS value
+FROM visitors_count v
+UNION ALL
+SELECT 'Leads' AS stage, ls.total_leads AS value
+FROM leads_stats ls
+UNION ALL
+SELECT 'Successful sales' AS stage, ls.successful_sales AS value
+FROM leads_stats ls;
+
+
 -- Количество посещений по платным каналам (visits_count_source_no_organic)
 SELECT
     to_char(visit_date, 'yyyy-mm-dd')::date AS visit_day,
@@ -292,4 +316,5 @@ WHERE l.closing_reason = 'Успешно реализовано'
 GROUP BY s.source
 
 ORDER BY purchases_count DESC;
+
 
