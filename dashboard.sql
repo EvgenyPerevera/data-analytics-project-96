@@ -10,7 +10,7 @@ SELECT
 FROM sessions
 GROUP BY v_date;
 
---Количество уникальных пользователей для разных каналов:
+--Количество уникальных пользователей для разных каналов (июнь):
 SELECT
   LOWER(source) AS utm_source,
   COUNT(DISTINCT visitor_id) AS unique_visitors
@@ -80,7 +80,7 @@ SELECT
 FROM leads
 GROUP BY created_date;
 
---Сколько лидов приходит для вк и яндекс 
+--Сколько лидов приходит для Вк и Яндекс ???
 SELECT
     LOWER(s.source) AS utm_source,
     COUNT(DISTINCT l.lead_id) AS leads_count
@@ -290,4 +290,5 @@ JOIN sessions s ON l.visitor_id = s.visitor_id
 WHERE l.closing_reason = 'Успешно реализовано'
    OR l.status_id = 142
 GROUP BY s.source
+
 ORDER BY purchases_count DESC;
