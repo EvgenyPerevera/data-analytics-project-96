@@ -113,7 +113,7 @@ FROM leads;
 
 
 
---КОНВЕРСИЯ ИЗ ЛИДА В ОПЛАТУ 
+--КОНВЕРСИЯ ИЗ ЛИДА В ПРОДАЖУ 
 
 SELECT
     COUNT(DISTINCT lead_id) AS total_leads,
@@ -292,3 +292,4 @@ WHERE l.closing_reason = 'Успешно реализовано'
 GROUP BY s.source
 
 ORDER BY purchases_count DESC;
+
