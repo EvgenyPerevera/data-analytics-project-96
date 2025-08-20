@@ -283,8 +283,8 @@ GROUP BY utm_source;
 
 -- roi = (revenue - total_cost) / total_cost * 100%
 roi общий по платным источникам = (8752676 - 6428804)/6428804 * 100 = 36,15%
-roi vk=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
-roi yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%
+roi VK = (2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
+roi Yandex = (6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%
 
 
 
@@ -310,8 +310,8 @@ FROM sessions
 
 6428804/169140=38,03
 
-Для вк = 47,3
-Для яндекс = 307,3
+Для VK = 47,3
+Для Yandex = 307,3
 
 --CPL
 
@@ -327,8 +327,8 @@ SELECT
     count(DISTINCT lead_id) AS leads_count
 FROM leads;
 
-Для вк = 12 119
-Для яндекс = 1930
+Для VK = 1930
+Для Yandex = 12119
 
 --CPPU
 
@@ -346,8 +346,8 @@ FROM leads
 WHERE closing_reason = 'Успешно реализовано'
    OR status_id = 142;
 
-Для вк = 81 197
-Для яндекс = 26 607
+Для VK = 26607
+Для Yandex = 81 197
 
 
 
@@ -356,8 +356,8 @@ WHERE closing_reason = 'Успешно реализовано'
 
 
 roi = (8752676 - 6428804)/6428804 * 100 = 36,15%
-roi vk=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
-roi yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%
+roi VK=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
+roi Yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%
 
 
 
@@ -370,8 +370,57 @@ JOIN sessions s ON l.visitor_id = s.visitor_id
 WHERE l.closing_reason = 'Успешно реализовано'
    OR l.status_id = 142
 GROUP BY s.source
-
 ORDER BY purchases_count DESC;
+
+
+
+--Через сколько дней после Last Paid Click закрывается 90% лидов (p90) для ВК и Яндекс:
+
+WITH paid_sessions AS (
+    SELECT
+        s.visitor_id,
+        s.visit_date,
+        s.source,
+        s.medium,
+        ROW_NUMBER() OVER (
+            PARTITION BY s.visitor_id
+            ORDER BY s.visit_date DESC
+        ) AS rn
+    FROM sessions s
+    WHERE LOWER(s.medium) IN ('cpc','cpm','cpa','cpp','social','tg','youtube')
+      AND LOWER(s.source) IN ('vk','yandex')
+),
+last_paid_click AS (
+    SELECT
+        visitor_id,
+        visit_date AS last_click_date,
+        source AS last_click_source
+    FROM paid_sessions
+    WHERE rn = 1
+),
+lead_lags AS (
+    SELECT
+        l.lead_id,
+        l.visitor_id,
+        l.created_at,
+        l.amount,
+        l.status_id,
+        l.closing_reason,
+        lpc.last_click_date,
+        lpc.last_click_source,
+        EXTRACT(DAY FROM (l.created_at - lpc.last_click_date)) AS days_to_close
+    FROM leads l
+    JOIN last_paid_click lpc
+        ON l.visitor_id = lpc.visitor_id
+    WHERE l.created_at IS NOT NULL
+      AND EXTRACT(DAY FROM (l.created_at - lpc.last_click_date)) >= 0
+)
+SELECT
+    last_click_source,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY days_to_close) AS p90_days_to_close
+FROM lead_lags
+GROUP BY last_click_source;
+
 
 
 
