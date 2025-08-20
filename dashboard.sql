@@ -372,7 +372,51 @@ WHERE l.closing_reason = 'Успешно реализовано'
 GROUP BY s.source
 ORDER BY purchases_count DESC;
 
+--Через сколько дней после Last Paid Click закрывается 90% лидов (p90):
 
+WITH paid_sessions AS (
+    SELECT
+        s.visitor_id,
+        s.visit_date,
+        s.source,
+        s.medium,
+        ROW_NUMBER() OVER (
+            PARTITION BY s.visitor_id
+            ORDER BY s.visit_date DESC
+        ) AS rn
+    FROM sessions s
+    WHERE LOWER(s.medium) IN ('cpc','cpm','cpa','cpp','social','tg','youtube')
+),
+last_paid_click AS (
+    SELECT
+        visitor_id,
+        visit_date AS last_click_date,
+        source AS last_click_source
+    FROM paid_sessions
+    WHERE rn = 1
+),
+lead_lags AS (
+    SELECT
+        l.lead_id,
+        l.visitor_id,
+        l.created_at,
+        l.amount,
+        l.status_id,
+        l.closing_reason,
+        lpc.last_click_date,
+        lpc.last_click_source,
+        EXTRACT(DAY FROM (l.created_at - lpc.last_click_date)) AS days_to_close
+    FROM leads l
+    JOIN last_paid_click lpc
+        ON l.visitor_id = lpc.visitor_id
+    WHERE l.created_at IS NOT NULL
+      AND EXTRACT(DAY FROM (l.created_at - lpc.last_click_date)) >= 0
+)
+SELECT
+    last_click_source,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY days_to_close) AS p90_days_to_close
+FROM lead_lags
+GROUP BY last_click_source;
 
 --Через сколько дней после Last Paid Click закрывается 90% лидов (p90) для ВК и Яндекс:
 
@@ -420,6 +464,7 @@ SELECT
     PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY days_to_close) AS p90_days_to_close
 FROM lead_lags
 GROUP BY last_click_source;
+
 
 
 
