@@ -12,26 +12,19 @@ WITH visitors_with_leads AS (
         s.source AS utm_source
     FROM sessions AS s
     LEFT JOIN leads AS l
-        ON
-            s.visitor_id = l.visitor_id
-            AND s.visit_date <= l.created_at
-    WHERE 
-        s.medium != 'organic'
-    ORDER BY 
-        s.visitor_id, s.visit_date DESC
+        ON s.visitor_id = l.visitor_id
+        AND s.visit_date <= l.created_at
+    WHERE s.medium != 'organic'
+    ORDER BY s.visitor_id, s.visit_date DESC
 ),
 utm_aggregates AS (
     SELECT
+        DATE(visit_date) AS visit_date,
         utm_source,
         utm_medium,
         utm_campaign,
-        DATE(visit_date) AS visit_date,
         COUNT(visitor_id) AS visitors_count,
-        COUNT(
-            CASE
-                WHEN created_at IS NOT NULL THEN visitor_id
-            END
-        ) AS leads_count,
+        COUNT(CASE WHEN created_at IS NOT NULL THEN visitor_id END) AS leads_count,
         COUNT(CASE WHEN status_id = 142 THEN visitor_id END) AS purchases_count,
         SUM(CASE WHEN status_id = 142 THEN amount END) AS revenue
     FROM visitors_with_leads
@@ -73,6 +66,6 @@ LEFT JOIN ad_costs AS a
     AND u.utm_medium = a.utm_medium
     AND u.utm_campaign = a.utm_campaign
 ORDER BY 
-    9 DESC NULLS LAST, 1, 2 DESC, 3, 4, 5
-
+    u.revenue DESC NULLS LAST, u.visit_date, u.utm_source DESC, u.utm_medium, u.utm_campaign, a.total_cost
 LIMIT 15;
+
