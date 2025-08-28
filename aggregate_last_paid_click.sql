@@ -58,10 +58,10 @@ ad_costs AS (
 )
 SELECT
     u.visit_date,
+    u.visitors_count,
     u.utm_source,
     u.utm_medium,
     u.utm_campaign,
-    u.visitors_count,
     a.total_cost,
     u.leads_count,
     u.purchases_count,
@@ -74,4 +74,5 @@ LEFT JOIN ad_costs AS a
     AND u.utm_campaign = a.utm_campaign
 ORDER BY 
     9 DESC NULLS LAST, 1, 2 DESC, 3, 4, 5
+
 LIMIT 15;
