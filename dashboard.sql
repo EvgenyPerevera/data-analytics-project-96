@@ -138,7 +138,7 @@ ORDER BY
     END;
 END;
 
---КОНВЕРСИЯ ИЗ КЛИКА В ЛИД
+-- КОЭФФИЦИЕНТ КОНВЕРСИИ ИЗ КЛИКА В ЛИД (для всех каналов)
 WITH sessions_with_leads AS (
     SELECT DISTINCT
         l.lead_id,
@@ -162,7 +162,7 @@ SELECT
     ) AS conversion_to_lead_percent
 FROM leads;
 
---КОНВЕРСИЯ ИЗ ЛИДА В ПРОДАЖУ 
+--КОЭФФИЦИЕНТ КОНВЕРСИИ ИЗ ЛИДА В ПРОДАЖУ (для всех каналов)
 SELECT
     COUNT(DISTINCT lead_id) AS total_leads,
     COUNT(DISTINCT lead_id) FILTER (
@@ -206,7 +206,7 @@ SELECT
     ls.successful_sales AS value
 FROM leads_stats AS ls;
 
---Количество посещений по платным каналам (visits_count_source_no_organic)
+--Количество посещений по платным каналам
 SELECT
     to_char(visit_date, 'yyyy-mm-dd')::date AS visit_day,
     source,
@@ -217,28 +217,6 @@ FROM sessions
 WHERE medium != 'organic'
 GROUP BY to_char(visit_date, 'yyyy-mm-dd')::date, source, medium, campaign
 ORDER BY visit_day ASC, visitors_count DESC;
-
---Расходы по каналам в динамике (по датам)
-SELECT
-    campaign_date,
-    utm_source,
-    SUM(daily_spent) AS total_spent
-FROM (
-    SELECT
-        campaign_date,
-        utm_source,
-        daily_spent
-    FROM ya_ads
-    UNION ALL
-    SELECT
-        campaign_date,
-        utm_source,
-        daily_spent
-    FROM vk_ads
-) AS all_ads
-GROUP BY campaign_date, utm_source
-ORDER BY campaign_date, utm_source;
-
 
 /*ОКУПАЮТСЯ ЛИ КАНАЛЫ?*/
 
@@ -289,6 +267,27 @@ FROM (
 ) AS ads
 GROUP BY 1;
 
+--Расходы на VK и Yandex в динамике (по датам)
+SELECT
+    campaign_date,
+    utm_source,
+    SUM(daily_spent) AS total_spent
+FROM (
+    SELECT
+        campaign_date,
+        utm_source,
+        daily_spent
+    FROM ya_ads
+    UNION ALL
+    SELECT
+        campaign_date,
+        utm_source,
+        daily_spent
+    FROM vk_ads
+) AS all_ads
+GROUP BY campaign_date, utm_source
+ORDER BY campaign_date, utm_source;
+
 /*ROI = (revenue - total_cost) / total_cost * 100%
 ROI = (8752676 - 6428804)/6428804 * 100 = 36,15%
 ROI VK=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
@@ -335,7 +334,7 @@ FROM leads
 WHERE closing_reason = 'Успешно реализовано'
    OR status_id = 142;
 
---Через сколько дней после Last Paid Click закрывается 90% лидов (p90)?
+--Через сколько дней после перехода по рекламе закрывается 90% лидов?
 WITH paid_sessions AS (
     SELECT
         s.visitor_id,
@@ -379,6 +378,7 @@ SELECT
     PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY days_to_close) AS p90_days_to_close
 FROM lead_lags
 GROUP BY last_click_source;
+
 
 
 
