@@ -1,3 +1,191 @@
+--Уникальные пользователи за весь период 
+SELECT count(DISTINCT visitor_id) AS visitors_count
+FROM sessions;
+
+--Количество уникальных пользователей VK
+SELECT count(DISTINCT visitor_id) AS unique_vk_visitors
+FROM sessions
+WHERE lower(source) = 'vk';
+
+--Количество уникальных пользователей Yandex
+SELECT count(DISTINCT visitor_id) AS unique_yandex_visitors
+FROM sessions
+WHERE lower(source) = 'yandex';
+
+--Сколько лидов приходит в общем 
+SELECT count(DISTINCT lead_id) AS leads_count
+FROM leads;
+
+--Сколько лидов приходит для VK и Yandex?
+SELECT
+    lower(s.source) AS utm_source,
+    count(DISTINCT l.lead_id) AS leads_count
+FROM leads AS l
+INNER JOIN sessions AS s ON l.visitor_id = s.visitor_id
+WHERE lower(s.source) IN ('vk', 'yandex')
+GROUP BY lower(s.source)
+ORDER BY leads_count DESC;
+
+--Конверсия Клик-Лид-продажа
+WITH visitors_count AS (
+    SELECT count(DISTINCT visitor_id) AS total_visitors
+    FROM sessions
+),
+
+leads_stats AS (
+    SELECT
+        count(DISTINCT l.lead_id) AS total_leads,
+        count(DISTINCT l.lead_id) FILTER (
+            WHERE l.closing_reason = 'Успешная продажа'
+        ) AS successful_sales
+    FROM leads AS l
+)
+
+SELECT
+    'Visitors' AS funnel_stage,
+    v.total_visitors AS metric_value
+FROM visitors_count AS v
+UNION ALL
+SELECT
+    'Leads' AS funnel_stage,
+    ls.total_leads AS metric_value
+FROM leads_stats AS ls
+UNION ALL
+SELECT
+    'Successful sales' AS funnel_stage,
+    ls.successful_sales AS metric_value
+FROM leads_stats AS ls;
+
+--Конверсия Клик-Лид-Продажа для VK и Yandex 
+WITH filtered_visitors AS (
+    SELECT DISTINCT
+        s.visitor_id,
+        lower(s.source) AS channel
+    FROM sessions AS s
+    WHERE lower(s.source) IN ('vk', 'yandex')
+),
+
+leads_stats AS (
+    SELECT
+        f.channel,
+        count(DISTINCT l.lead_id) AS total_leads,
+        count(DISTINCT l.lead_id) FILTER (
+            WHERE l.closing_reason = 'Успешная продажа'
+        ) AS successful_sales
+    FROM leads AS l
+    INNER JOIN filtered_visitors AS f
+        ON l.visitor_id = f.visitor_id
+    GROUP BY f.channel
+),
+
+visitors_count AS (
+    SELECT
+        lower(source) AS channel,
+        count(DISTINCT visitor_id) AS total_visitors
+    FROM sessions
+    WHERE lower(source) IN ('vk', 'yandex')
+    GROUP BY lower(source)
+),
+
+funnel_raw AS (
+    SELECT
+        v.channel,
+        'Visitors' AS funnel_stage,
+        v.total_visitors AS metric_value
+    FROM visitors_count AS v
+    UNION ALL
+    SELECT
+        l.channel,
+        'Leads' AS funnel_stage,
+        l.total_leads AS metric_value
+    FROM leads_stats AS l
+    UNION ALL
+    SELECT
+        l.channel,
+        'Successful sales' AS funnel_stage,
+        l.successful_sales AS metric_value
+    FROM leads_stats AS l
+)
+
+SELECT *
+FROM funnel_raw
+ORDER BY
+    channel,
+    CASE stage
+        WHEN 'Visitors' THEN 1
+        WHEN 'Leads' THEN 2
+        WHEN 'Successful sales' THEN 3
+    END;
+END;
+
+--Доходы по всем источникам
+SELECT
+    lower(s.source) AS utm_source,
+    sum(l.amount) AS total_revenue
+FROM sessions AS s
+INNER JOIN leads AS l ON s.visitor_id = l.visitor_id
+WHERE l.status_id = 142 OR l.closing_reason = 'Успешно реализовано'
+GROUP BY lower(s.source)
+ORDER BY total_revenue DESC;
+
+--Доходы по источникам VK и Yandex
+SELECT
+    CASE
+        WHEN lower(s.source) LIKE '%vk%' THEN 'vk'
+        WHEN
+            lower(s.source) LIKE '%ya%' OR lower(s.source) LIKE '%yandex%'
+            THEN 'yandex'
+    END AS utm_source,
+    sum(l.amount) AS total_revenue
+FROM sessions AS s
+INNER JOIN leads AS l ON s.visitor_id = l.visitor_id
+WHERE
+    (
+        lower(s.source) LIKE '%vk%'
+        OR lower(s.source) LIKE '%ya%'
+        OR lower(s.source) LIKE '%yandex%'
+    )
+    AND (l.status_id = 142 OR l.closing_reason = 'Успешно реализовано')
+GROUP BY utm_source;
+
+--Расходы по источникам VK и Yandex
+SELECT
+    utm_source,
+    sum(daily_spent) AS total_spent
+FROM (
+    SELECT
+        utm_source,
+        daily_spent
+    FROM ya_ads
+    UNION ALL
+    SELECT
+        utm_source,
+        daily_spent
+    FROM vk_ads
+) AS ads
+GROUP BY utm_source;
+
+--Расходы на VK и Yandex в динамике (по датам)
+SELECT
+    campaign_date,
+    utm_source,
+    sum(daily_spent) AS total_spent
+FROM (
+    SELECT
+        campaign_date,
+        utm_source,
+        daily_spent
+    FROM ya_ads
+    UNION ALL
+    SELECT
+        campaign_date,
+        utm_source,
+        daily_spent
+    FROM vk_ads
+) AS all_ads
+GROUP BY campaign_date, utm_source
+ORDER BY campaign_date, utm_source;
+
 /*ROI = (revenue - total_cost) / total_cost * 100%
 ROI = (8752676 - 6428804)/6428804 * 100 = 36,15%
 ROI VK=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
