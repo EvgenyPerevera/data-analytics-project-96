@@ -76,44 +76,6 @@ WHERE lower(s.source) IN ('vk', 'yandex')
 GROUP BY lower(s.source)
 ORDER BY leads_count DESC;
 
--- КОЭФФИЦИЕНТ КОНВЕРСИИ ИЗ КЛИКА В ЛИД (для всех каналов)
-WITH sessions_with_leads AS (
-    SELECT DISTINCT
-        l.lead_id,
-        l.visitor_id
-    FROM leads AS l
-    INNER JOIN sessions AS s
-        ON
-            l.visitor_id = s.visitor_id
-            AND l.created_at >= s.visit_date
-)
-
-SELECT
-    (SELECT COUNT(DISTINCT visitor_id) FROM sessions) AS total_visitors,
-    count(DISTINCT lead_id) AS leads_after_session,
-    round(
-        count(DISTINCT lead_id)
-        * 100.0
-        / (SELECT count(DISTINCT visitor_id) FROM sessions
-        ),
-        2
-    ) AS conversion_to_lead_percent
-FROM leads;
-
---КОЭФФИЦИЕНТ КОНВЕРСИИ ИЗ ЛИДА В ПРОДАЖУ (для всех каналов)
-SELECT
-    count(DISTINCT lead_id) AS total_leads,
-    count(DISTINCT lead_id) FILTER (
-        WHERE closing_reason = 'Успешная продажа'
-    ) AS successful_clients,
-    round(
-        count(DISTINCT lead_id) FILTER (
-            WHERE closing_reason = 'Успешная продажа'
-        ) * 100.0 / count(DISTINCT lead_id),
-        2
-    ) AS conversion_to_payment_percent
-FROM leads;
-
 --Конверсия Клик-Лид-продажа
 WITH visitors_count AS (
     SELECT count(DISTINCT visitor_id) AS total_visitors
@@ -388,6 +350,7 @@ SELECT
     ) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
+
 
 
 
