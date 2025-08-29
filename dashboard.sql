@@ -106,7 +106,7 @@ SELECT
     count(DISTINCT lead_id) FILTER (
         WHERE closing_reason = 'Успешная продажа'
     ) AS successful_clients,
-    ROUND(
+    round(
         count(DISTINCT lead_id) FILTER (
             WHERE closing_reason = 'Успешная продажа'
         ) * 100.0 / count(DISTINCT lead_id),
@@ -148,9 +148,9 @@ FROM leads_stats AS ls;
 WITH filtered_visitors AS (
     SELECT DISTINCT
         s.visitor_id,
-        LOWER(s.source) AS channel
+        lower(s.source) AS channel
     FROM sessions AS s
-    WHERE LOWER(s.source) IN ('vk', 'yandex')
+    WHERE lower(s.source) IN ('vk', 'yandex')
 ),
 
 leads_stats AS (
@@ -223,11 +223,11 @@ ORDER BY visit_day ASC, visitors_count DESC;
 --Доходы по всем источникам
 SELECT
     lower(s.source) AS utm_source,
-    SUM(l.amount) AS total_revenue
+    sum(l.amount) AS total_revenue
 FROM sessions AS s
 INNER JOIN leads AS l ON s.visitor_id = l.visitor_id
 WHERE l.status_id = 142 OR l.closing_reason = 'Успешно реализовано'
-GROUP BY LOWER(s.source)
+GROUP BY lower(s.source)
 ORDER BY total_revenue DESC;
 
 --Доходы по источникам VK и Yandex
@@ -235,10 +235,10 @@ SELECT
     CASE
         WHEN lower(s.source) LIKE '%vk%' THEN 'vk'
         WHEN
-            lower(s.source) LIKE '%ya%' OR LOWER(s.source) LIKE '%yandex%'
+            lower(s.source) LIKE '%ya%' OR lower(s.source) LIKE '%yandex%'
             THEN 'yandex'
     END AS utm_source,
-    SUM(l.amount) AS total_revenue
+    sum(l.amount) AS total_revenue
 FROM sessions AS s
 INNER JOIN leads AS l ON s.visitor_id = l.visitor_id
 WHERE
@@ -253,7 +253,7 @@ GROUP BY utm_source;
 --Расходы по источникам VK и Yandex
 SELECT
     utm_source,
-    SUM(daily_spent) AS total_spent
+    sum(daily_spent) AS total_spent
 FROM (
     SELECT
         utm_source,
@@ -271,7 +271,7 @@ GROUP BY 1;
 SELECT
     campaign_date,
     utm_source,
-    SUM(daily_spent) AS total_spent
+    sum(daily_spent) AS total_spent
 FROM (
     SELECT
         campaign_date,
@@ -294,7 +294,7 @@ ROI VK=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
 ROI Yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%*/
 
 --CPU (стоимость 1 пользователя для VK и Yandex) = total_cost / visitors_count
-SELECT SUM(daily_spent) AS total_cost
+SELECT sum(daily_spent) AS total_cost
 FROM (
     SELECT daily_spent FROM ya_ads
     UNION ALL
@@ -305,7 +305,7 @@ SELECT count(DISTINCT visitor_id) AS visitors_count
 FROM sessions;
 
 --CPL (стоимость 1 лида для VK и Yandex) = total_cost / leads_count
-SELECT SUM(daily_spent) AS total_cost
+SELECT sum(daily_spent) AS total_cost
 FROM (
     SELECT daily_spent FROM ya_ads
     UNION ALL
@@ -316,7 +316,7 @@ SELECT count(DISTINCT lead_id) AS leads_count
 FROM leads;
 
 --CPPU (стоимость 1 покупателя для VK и Yandex) = total_cost / purchases_count
-SELECT SUM(daily_spent) AS total_cost
+SELECT sum(daily_spent) AS total_cost
 FROM (
     SELECT daily_spent FROM ya_ads
     UNION ALL
@@ -336,12 +336,12 @@ WITH paid_sessions AS (
         s.visit_date,
         s.source,
         s.medium,
-        ROW_NUMBER() OVER (
+        row_number() over (
             PARTITION BY s.visitor_id
             ORDER BY s.visit_date DESC
         ) AS rn
     FROM sessions AS s
-    WHERE LOWER(s.medium) IN (
+    WHERE lower(s.medium) IN (
         'cpc',
         'cpm',
         'cpa',
@@ -378,16 +378,17 @@ lead_lags AS (
     JOIN last_paid_click AS lpc
         ON l.visitor_id = lpc.visitor_id
     WHERE l.created_at IS NOT NULL
-      AND EXTRACT(
-          DAY FROM (l.created_at - lpc.last_click_date)
-      ) >= 0
+      AND extract(
+            DAY FROM (l.created_at - lpc.last_click_date)
+        ) >= 0
 )
 
 SELECT
     ll.last_click_source,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY ll.days_to_close) AS p90_days_to_close
+    percentile_cont(0.9) within GROUP (ORDER BY ll.days_to_close) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
+
 
 
 
