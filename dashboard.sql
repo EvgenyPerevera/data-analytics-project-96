@@ -388,14 +388,3 @@ SELECT
     percentile_cont(0.9) within GROUP (ORDER BY ll.days_to_close) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
-
-
-
-
-
-
-
-
-
-
-
