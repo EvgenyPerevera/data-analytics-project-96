@@ -2,21 +2,6 @@
 SELECT count(DISTINCT visitor_id) AS visitors_count
 FROM sessions;
 
---Уникальные пользователи по дням
-SELECT
-    to_char(visit_date, 'YYYY-MM-DD') AS v_date,
-    count(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-GROUP BY v_date;
-
---Количество уникальных пользователей для разных каналов (июнь):
-SELECT
-    lower(source) AS utm_source,
-    count(DISTINCT visitor_id) AS unique_visitors
-FROM sessions
-GROUP BY lower(source)
-ORDER BY unique_visitors DESC;
-
 --Количество уникальных пользователей VK
 SELECT count(DISTINCT visitor_id) AS unique_vk_visitors
 FROM sessions
@@ -27,44 +12,9 @@ SELECT count(DISTINCT visitor_id) AS unique_yandex_visitors
 FROM sessions
 WHERE lower(source) = 'yandex';
 
---Какие каналы приводят пользователей (по дням/неделям/месяцам)
-SELECT
-    date_trunc('day', visit_date) AS visit_day,
-    lower(source) AS utm_source,
-    lower(medium) AS utm_medium,
-    count(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-GROUP BY visit_date, utm_source, utm_medium
-ORDER BY visit_date, utm_source, utm_medium;
-
-SELECT
-    date_trunc('week', visit_date) AS visit_week,
-    lower(source) AS utm_source,
-    lower(medium) AS utm_medium,
-    count(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-GROUP BY visit_date, utm_source, utm_medium
-ORDER BY visit_date, utm_source, utm_medium;
-
-SELECT
-    date_trunc('month', visit_date) AS visit_month,
-    lower(source) AS utm_source,
-    lower(medium) AS utm_medium,
-    count(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-GROUP BY visit_date, utm_source, utm_medium
-ORDER BY visit_date, utm_source, utm_medium;
-
 --Сколько лидов приходит в общем 
 SELECT count(DISTINCT lead_id) AS leads_count
 FROM leads;
-
---Сколько лидов приходит по дням
-SELECT
-    to_char(created_at, 'YYYY-MM-DD') AS created_date,
-    count(DISTINCT lead_id) AS lead_count
-FROM leads
-GROUP BY created_date;
 
 --Сколько лидов приходит для VK и Yandex?
 SELECT
@@ -167,18 +117,6 @@ ORDER BY
         WHEN 'Successful sales' THEN 3
     END;
 END;
-
---Количество посещений по платным каналам
-SELECT
-    to_char(visit_date, 'yyyy-mm-dd')::date AS visit_day,
-    source,
-    medium,
-    campaign,
-    count(DISTINCT visitor_id) AS visitors_count
-FROM sessions
-WHERE medium != 'organic'
-GROUP BY to_char(visit_date, 'yyyy-mm-dd')::date, source, medium, campaign
-ORDER BY visit_day ASC, visitors_count DESC;
 
 --Доходы по всем источникам
 SELECT
@@ -353,3 +291,4 @@ SELECT
     ) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
+
