@@ -27,7 +27,7 @@ utm_aggregates AS (
         utm_campaign,
         COUNT(visitor_id) AS visitors_count,
         COUNT(CASE WHEN created_at IS NOT NULL THEN visitor_id END)
-            AS leads_count,
+        AS leads_count,
         COUNT(CASE WHEN status_id = 142 THEN visitor_id END) AS purchases_count,
         SUM(CASE WHEN status_id = 142 THEN amount END) AS revenue
     FROM visitors_with_leads
@@ -76,4 +76,3 @@ ORDER BY
     u.visit_date ASC, u.utm_source DESC,
     u.utm_medium ASC, u.utm_campaign ASC, a.total_cost ASC
 LIMIT 15;
-
