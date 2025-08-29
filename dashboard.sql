@@ -218,8 +218,6 @@ WHERE medium != 'organic'
 GROUP BY to_char(visit_date, 'yyyy-mm-dd')::date, source, medium, campaign
 ORDER BY visit_day ASC, visitors_count DESC;
 
-/*ОКУПАЮТСЯ ЛИ КАНАЛЫ?*/
-
 --Доходы по всем источникам
 SELECT
     lower(s.source) AS utm_source,
@@ -390,3 +388,4 @@ SELECT
     ) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
+
