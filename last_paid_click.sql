@@ -70,5 +70,3 @@ ORDER BY
     utm_medium ASC NULLS LAST,
     utm_campaign ASC NULLS LAST
 LIMIT 10;
-
-
