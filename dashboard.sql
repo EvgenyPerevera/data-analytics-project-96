@@ -353,4 +353,3 @@ SELECT
     ) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
-
