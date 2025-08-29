@@ -122,4 +122,3 @@ ORDER BY
     a.utm_medium ASC,
     a.utm_campaign ASC
 LIMIT 15;
-
