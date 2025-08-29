@@ -297,8 +297,8 @@ WITH paid_sessions AS (
         s.source,
         s.medium,
         row_number()
-            OVER(
-            PARTITION BY s.visitor_id
+            OVER (
+                PARTITION BY s.visitor_id
                 ORDER BY s.visit_date DESC
             )
         AS rn
@@ -339,7 +339,7 @@ lead_lags AS (
     FROM leads AS l
     LEFT JOIN last_paid_click AS lpc
         ON l.visitor_id = lpc.visitor_id
-    WHERE        
+    WHERE      
         l.created_at IS NOT NULL
         AND extract(
             DAY FROM (l.created_at - lpc.last_click_date)
