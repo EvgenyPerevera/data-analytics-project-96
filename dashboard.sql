@@ -296,8 +296,7 @@ WITH paid_sessions AS (
         s.visit_date,
         s.source,
         s.medium,
-        ROW_NUMBER() over (
-            PARTITION BY s.visitor_id
+        ROW_NUMBER() over (partition BY s.visitor_id
             ORDER BY s.visit_date DESC
         ) AS rn
     FROM sessions AS s
@@ -350,6 +349,7 @@ SELECT
     ) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
+
 
 
 
