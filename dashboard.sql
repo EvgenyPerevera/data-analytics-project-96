@@ -339,7 +339,7 @@ lead_lags AS (
     FROM leads AS l
     LEFT JOIN last_paid_click AS lpc
         ON l.visitor_id = lpc.visitor_id
-    WHERE      
+    WHERE 
         l.created_at IS NOT NULL
         AND extract(
             DAY FROM (l.created_at - lpc.last_click_date)
@@ -353,3 +353,4 @@ SELECT
     ) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
+
