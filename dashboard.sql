@@ -296,10 +296,12 @@ WITH paid_sessions AS (
         s.visit_date,
         s.source,
         s.medium,
-        row_number() OVER 
-            (PARTITION BY s.visitor_id
-            ORDER BY s.visit_date DESC
-        ) AS rn
+        row_number()
+            OVER(
+            PARTITION BY s.visitor_id
+                ORDER BY s.visit_date DESC
+            )
+        AS rn
     FROM sessions AS s
     WHERE lower(s.medium) IN (
         'cpc',
@@ -335,9 +337,10 @@ lead_lags AS (
             DAY FROM (l.created_at - lpc.last_click_date)
         ) AS days_to_close
     FROM leads AS l
-    JOIN last_paid_click AS lpc
-    ON l.visitor_id = lpc.visitor_id
-        WHERE l.created_at IS NOT NULL
+    LEFT JOIN last_paid_click AS lpc
+        ON l.visitor_id = lpc.visitor_id
+    WHERE        
+        l.created_at IS NOT NULL
         AND extract(
             DAY FROM (l.created_at - lpc.last_click_date)
         ) >= 0
@@ -345,8 +348,8 @@ lead_lags AS (
 
 SELECT
     ll.last_click_source,
-        percentile_cont(0.9) WITHIN GROUP (
-    ORDER BY ll.days_to_close
+    percentile_cont(0.9) WITHIN GROUP (
+        ORDER BY ll.days_to_close
     ) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
