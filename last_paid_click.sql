@@ -1,72 +1,41 @@
-WITH paid_sessions AS (
-    SELECT
-        s.visitor_id,
-        s.visit_date,
-        s.source AS utm_source,
-        s.medium AS utm_medium,
-        s.campaign AS utm_campaign
-    FROM sessions AS s
-    WHERE
-        LOWER(s.medium) IN (
-            'cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social'
-        )
-),
-
-ranked_sessions AS (
-    SELECT
-        l.visitor_id,
-        l.lead_id,
-        l.created_at,
-        l.amount,
-        l.closing_reason,
-        l.learning_format,
-        l.status_id,
-        ps.visit_date,
-        ps.utm_source,
-        ps.utm_medium,
-        ps.utm_campaign,
-        ROW_NUMBER() OVER (
-            PARTITION BY l.visitor_id, l.lead_id
-            ORDER BY ps.visit_date DESC
-        ) AS rn
-    FROM leads AS l
-    LEFT JOIN paid_sessions AS ps
-        ON
-            l.visitor_id = ps.visitor_id
-            AND l.created_at >= ps.visit_date
-),
-
-last_paid_clicks AS (
-    SELECT *
-    FROM ranked_sessions
-    WHERE rn = 1
-),
-
-all_sessions_with_leads AS (
-    SELECT
-        s.visitor_id,
-        s.visit_date,
-        lpc.lead_id,
-        lpc.created_at,
-        lpc.amount,
-        lpc.closing_reason,
-        lpc.status_id,
-        COALESCE(lpc.utm_source, NULL) AS utm_source,
-        COALESCE(lpc.utm_medium, NULL) AS utm_medium,
-        COALESCE(lpc.utm_campaign, NULL) AS utm_campaign
-    FROM sessions AS s
-    LEFT JOIN last_paid_clicks AS lpc
-        ON
-            s.visitor_id = lpc.visitor_id
-            AND s.visit_date = lpc.visit_date
-)
-
-SELECT *
-FROM all_sessions_with_leads
+SELECT
+  t.visitor_id,
+  t.visit_date,
+  t.utm_source,
+  t.utm_medium,
+  t.utm_campaign,
+  t.lead_id,
+  t.created_at,
+  t.amount,
+  t.closing_reason,
+  t.status_id
+FROM (
+  SELECT
+    s.visitor_id,
+    s.visit_date::timestamp AS visit_date,
+    lower(s.source)   AS utm_source,
+    lower(s.medium)   AS utm_medium,
+    lower(s.campaign) AS utm_campaign,
+    l.lead_id,
+    l.created_at,
+    l.amount,
+    l.closing_reason,
+    l.status_id,
+    ROW_NUMBER() OVER (
+      PARTITION BY l.lead_id
+      ORDER BY s.visit_date DESC
+    ) AS rn
+  FROM leads l
+  JOIN sessions s
+    ON s.visitor_id = l.visitor_id
+   AND s.visit_date <= l.created_at
+   AND lower(s.medium) IN ('cpc','cpm','cpa','youtube','cpp','tg','social')
+) t
+WHERE t.rn = 1
 ORDER BY
-    amount DESC NULLS LAST,
-    visit_date ASC,
-    utm_source ASC NULLS LAST,
-    utm_medium ASC NULLS LAST,
-    utm_campaign ASC NULLS LAST
+  t.amount DESC NULLS LAST,
+  t.visit_date ASC,
+  t.utm_source ASC,
+  t.utm_medium ASC,
+  t.utm_campaign ASC
 LIMIT 10;
