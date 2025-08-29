@@ -76,5 +76,3 @@ ORDER BY
     u.visit_date ASC, u.utm_source DESC,
     u.utm_medium ASC, u.utm_campaign ASC, a.total_cost ASC
 LIMIT 15;
-
-
