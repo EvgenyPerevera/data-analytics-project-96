@@ -1,5 +1,6 @@
 --Уникальные пользователи за весь период 
-SELECT count(DISTINCT visitor_id) AS visitors_count
+SELECT 
+    count(DISTINCT visitor_id) AS visitors_count
 FROM sessions;
 
 --Уникальные пользователи по дням
@@ -18,7 +19,8 @@ GROUP BY lower(source)
 ORDER BY unique_visitors DESC;
 
 --Количество уникальных пользователей VK
-SELECT count(DISTINCT visitor_id) AS unique_vk_visitors
+SELECT 
+    count(DISTINCT visitor_id) AS unique_vk_visitors
 FROM sessions
 WHERE lower(source) = 'vk';
 
@@ -388,4 +390,5 @@ SELECT
     ) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
+
 
