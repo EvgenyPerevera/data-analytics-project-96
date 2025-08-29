@@ -34,8 +34,8 @@ SELECT
     lower(medium) AS utm_medium,
     count(DISTINCT visitor_id) AS visitors_count
 FROM sessions
-GROUP BY 1, 2, 3
-ORDER BY 1, 2, 3;
+GROUP BY visit_day, utm_source, utm_medium
+ORDER BY visit_day, utm_source, utm_medium;
 
 SELECT
     date_trunc('week', visit_date) AS visit_week,
@@ -43,8 +43,8 @@ SELECT
     lower(medium) AS utm_medium,
     count(DISTINCT visitor_id) AS visitors_count
 FROM sessions
-GROUP BY 1, 2, 3
-ORDER BY 1, 2, 3;
+GROUP BY visit_day, utm_source, utm_medium
+ORDER BY visit_day, utm_source, utm_medium;
 
 SELECT
     date_trunc('month', visit_date) AS visit_month,
@@ -52,8 +52,8 @@ SELECT
     lower(medium) AS utm_medium,
     count(DISTINCT visitor_id) AS visitors_count
 FROM sessions
-GROUP BY 1, 2, 3
-ORDER BY 1, 2, 3;
+GROUP BY visit_day, utm_source, utm_medium
+ORDER BY visit_day, utm_source, utm_medium;
 
 --Сколько лидов приходит в общем 
 SELECT count(DISTINCT lead_id) AS leads_count
@@ -388,6 +388,7 @@ SELECT
     percentile_cont(0.9) within GROUP (ORDER BY ll.days_to_close) AS p90_days_to_close
 FROM lead_lags AS ll
 GROUP BY ll.last_click_source;
+
 
 
 
