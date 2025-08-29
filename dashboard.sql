@@ -29,7 +29,7 @@ WHERE lower(source) = 'yandex';
 
 --Какие каналы приводят пользователей (по дням/неделям/месяцам)
 SELECT
-    date_trunc('day', visit_date) AS day,
+    date_trunc('day', visit_date) AS visit_day,
     lower(source) AS utm_source,
     lower(medium) AS utm_medium,
     count(DISTINCT visitor_id) AS visitors_count
@@ -38,7 +38,7 @@ GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3;
 
 SELECT
-    date_trunc('week', visit_date) AS week,
+    date_trunc('week', visit_date) AS visit_week,
     lower(source) AS utm_source,
     lower(medium) AS utm_medium,
     count(DISTINCT visitor_id) AS visitors_count
@@ -47,7 +47,7 @@ GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3;
 
 SELECT
-    date_trunc('month', visit_date) AS month,
+    date_trunc('month', visit_date) AS visit_month,
     lower(source) AS utm_source,
     lower(medium) AS utm_medium,
     count(DISTINCT visitor_id) AS visitors_count
@@ -55,11 +55,11 @@ FROM sessions
 GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3;
 
--- Сколько лидов приходит в общем 
+--Сколько лидов приходит в общем 
 SELECT count(DISTINCT lead_id) AS leads_count
 FROM leads;
 
--- Сколько лидов приходит по дням
+--Сколько лидов приходит по дням
 SELECT
     to_char(created_at, 'YYYY-MM-DD') AS created_date,
     count(DISTINCT lead_id) AS lead_count
@@ -75,68 +75,6 @@ INNER JOIN sessions AS s ON l.visitor_id = s.visitor_id
 WHERE lower(s.source) IN ('vk', 'yandex')
 GROUP BY lower(s.source)
 ORDER BY leads_count DESC;
-
---Конверсия Клик-Лид-Продажа для VK и Yandex 
-WITH filtered_visitors AS (
-    SELECT DISTINCT
-        s.visitor_id,
-        LOWER(s.source) AS channel
-    FROM sessions AS s
-    WHERE LOWER(s.source) IN ('vk', 'yandex')
-),
-
-leads_stats AS (
-    SELECT
-        f.channel,
-        COUNT(DISTINCT l.lead_id) AS total_leads,
-        COUNT(DISTINCT l.lead_id) FILTER (
-            WHERE l.closing_reason = 'Успешная продажа'
-        ) AS successful_sales
-    FROM leads AS l
-    INNER JOIN filtered_visitors AS f
-        ON l.visitor_id = f.visitor_id
-    GROUP BY f.channel
-),
-
-visitors_count AS (
-    SELECT
-        LOWER(source) AS channel,
-        COUNT(DISTINCT visitor_id) AS total_visitors
-    FROM sessions
-    WHERE LOWER(source) IN ('vk', 'yandex')
-    GROUP BY LOWER(source)
-),
-
-funnel_raw AS (
-    SELECT
-        v.channel,
-        'Visitors' AS stage,
-        v.total_visitors AS value
-    FROM visitors_count AS v
-    UNION ALL
-    SELECT
-        l.channel,
-        'Leads' AS stage,
-        l.total_leads AS value
-    FROM leads_stats AS l
-    UNION ALL
-    SELECT
-        l.channel,
-        'Successful sales' AS stage,
-        l.successful_sales AS value
-    FROM leads_stats AS l
-)
-
-SELECT *
-FROM funnel_raw
-ORDER BY
-    channel,
-    CASE stage
-        WHEN 'Visitors' THEN 1
-        WHEN 'Leads' THEN 2
-        WHEN 'Successful sales' THEN 3
-    END;
-END;
 
 -- КОЭФФИЦИЕНТ КОНВЕРСИИ ИЗ КЛИКА В ЛИД (для всех каналов)
 WITH sessions_with_leads AS (
@@ -192,19 +130,81 @@ leads_stats AS (
 )
 
 SELECT
-    'Visitors' AS stage,
-    v.total_visitors AS value
+    'Visitors' AS funnel_stage,
+    v.total_visitors AS metric_value
 FROM visitors_count AS v
 UNION ALL
 SELECT
-    'Leads' AS stage,
-    ls.total_leads AS value
+    'Leads' AS funnel_stage,
+    ls.total_leads AS metric_value
 FROM leads_stats AS ls
 UNION ALL
 SELECT
-    'Successful sales' AS stage,
-    ls.successful_sales AS value
+    'Successful sales' AS funnel_stage,
+    ls.successful_sales AS metric_value
 FROM leads_stats AS ls;
+
+--Конверсия Клик-Лид-Продажа для VK и Yandex 
+WITH filtered_visitors AS (
+    SELECT DISTINCT
+        s.visitor_id,
+        LOWER(s.source) AS channel
+    FROM sessions AS s
+    WHERE LOWER(s.source) IN ('vk', 'yandex')
+),
+
+leads_stats AS (
+    SELECT
+        f.channel,
+        COUNT(DISTINCT l.lead_id) AS total_leads,
+        COUNT(DISTINCT l.lead_id) FILTER (
+            WHERE l.closing_reason = 'Успешная продажа'
+        ) AS successful_sales
+    FROM leads AS l
+    INNER JOIN filtered_visitors AS f
+        ON l.visitor_id = f.visitor_id
+    GROUP BY f.channel
+),
+
+visitors_count AS (
+    SELECT
+        LOWER(source) AS channel,
+        COUNT(DISTINCT visitor_id) AS total_visitors
+    FROM sessions
+    WHERE LOWER(source) IN ('vk', 'yandex')
+    GROUP BY LOWER(source)
+),
+
+funnel_raw AS (
+    SELECT
+        v.channel,
+        'Visitors' AS funnel_stage,
+        v.total_visitors AS metric_value
+    FROM visitors_count AS v
+    UNION ALL
+    SELECT
+        l.channel,
+        'Leads' AS funnel_stage,
+        l.total_leads AS metric_value
+    FROM leads_stats AS l
+    UNION ALL
+    SELECT
+        l.channel,
+        'Successful sales' AS funnel_stage,
+        l.successful_sales AS metric_value
+    FROM leads_stats AS l
+)
+
+SELECT *
+FROM funnel_raw
+ORDER BY
+    channel,
+    CASE stage
+        WHEN 'Visitors' THEN 1
+        WHEN 'Leads' THEN 2
+        WHEN 'Successful sales' THEN 3
+    END;
+END;
 
 --Количество посещений по платным каналам
 SELECT
@@ -293,46 +293,41 @@ ROI = (8752676 - 6428804)/6428804 * 100 = 36,15%
 ROI VK=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
 ROI Yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%*/
 
---CPU (стоимость привлечения 1 пользователя для VK и Yandex) = total_cost / visitors_count
-SELECT 
-    SUM(daily_spent) AS total_cost
+--CPU (стоимость 1 пользователя для VK и Yandex) = total_cost / visitors_count
+SELECT SUM(daily_spent) AS total_cost
 FROM (
     SELECT daily_spent FROM ya_ads
     UNION ALL
     SELECT daily_spent FROM vk_ads
 ) AS all_ads;
 
-SELECT 
-    count(DISTINCT visitor_id) AS visitors_count
-FROM sessions
+SELECT COUNT(DISTINCT visitor_id) AS visitors_count
+FROM sessions;
 
---CPL (стоимость привлечения одного потенциального клиента (лида) для VK и Yandex) = total_cost / leads_count
-SELECT 
-    SUM(daily_spent) AS total_cost
+--CPL (стоимость 1 лида для VK и Yandex) = total_cost / leads_count
+SELECT SUM(daily_spent) AS total_cost
 FROM (
     SELECT daily_spent FROM ya_ads
     UNION ALL
     SELECT daily_spent FROM vk_ads
 ) AS all_ads;
 
-SELECT 
-    count(DISTINCT lead_id) AS leads_count
+SELECT COUNT(DISTINCT lead_id) AS leads_count
 FROM leads;
 
---CPPU (стоимость привлечения 1 покупателя для VK и Yandex) = total_cost / purchases_count
-SELECT 
-    SUM(daily_spent) AS total_cost
+--CPPU (стоимость 1 покупателя для VK и Yandex) = total_cost / purchases_count
+SELECT SUM(daily_spent) AS total_cost
 FROM (
     SELECT daily_spent FROM ya_ads
     UNION ALL
     SELECT daily_spent FROM vk_ads
 ) AS all_ads;
 
-SELECT
-    COUNT(DISTINCT lead_id) AS purchases_count
+SELECT COUNT(DISTINCT lead_id) AS purchases_count
 FROM leads
-WHERE closing_reason = 'Успешно реализовано'
-   OR status_id = 142;
+WHERE
+    closing_reason = 'Успешно реализовано'
+    OR status_id = 142;
 
 --Через сколько дней после перехода по рекламе закрывается 90% лидов?
 WITH paid_sessions AS (
@@ -345,17 +340,27 @@ WITH paid_sessions AS (
             PARTITION BY s.visitor_id
             ORDER BY s.visit_date DESC
         ) AS rn
-    FROM sessions s
-    WHERE LOWER(s.medium) IN ('cpc','cpm','cpa','cpp','social','tg','youtube')
+    FROM sessions AS s
+    WHERE LOWER(s.medium) IN (
+        'cpc',
+        'cpm',
+        'cpa',
+        'cpp',
+        'social',
+        'tg',
+        'youtube'
+    )
 ),
+
 last_paid_click AS (
     SELECT
-        visitor_id,
-        visit_date AS last_click_date,
-        source AS last_click_source
-    FROM paid_sessions
-    WHERE rn = 1
+        ps.visitor_id,
+        ps.visit_date AS last_click_date,
+        ps.source AS last_click_source
+    FROM paid_sessions AS ps
+    WHERE ps.rn = 1
 ),
+
 lead_lags AS (
     SELECT
         l.lead_id,
@@ -366,18 +371,24 @@ lead_lags AS (
         l.closing_reason,
         lpc.last_click_date,
         lpc.last_click_source,
-        EXTRACT(DAY FROM (l.created_at - lpc.last_click_date)) AS days_to_close
-    FROM leads l
-    JOIN last_paid_click lpc
+        EXTRACT(
+            DAY FROM (l.created_at - lpc.last_click_date)
+        ) AS days_to_close
+    FROM leads AS l
+    JOIN last_paid_click AS lpc
         ON l.visitor_id = lpc.visitor_id
     WHERE l.created_at IS NOT NULL
-      AND EXTRACT(DAY FROM (l.created_at - lpc.last_click_date)) >= 0
+      AND EXTRACT(
+          DAY FROM (l.created_at - lpc.last_click_date)
+      ) >= 0
 )
+
 SELECT
-    last_click_source,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY days_to_close) AS p90_days_to_close
-FROM lead_lags
-GROUP BY last_click_source;
+    ll.last_click_source,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY ll.days_to_close) AS p90_days_to_close
+FROM lead_lags AS ll
+GROUP BY ll.last_click_source;
+
 
 
 
