@@ -1,228 +1,102 @@
---Уникальные пользователи за весь период 
-SELECT count(DISTINCT visitor_id) AS visitors_count
-FROM sessions;
+/*CPU (cтоимость 1 уникального пользователя = 
+рекламные затраты / уникальные пользователи)*/
 
---Количество уникальных пользователей VK
-SELECT count(DISTINCT visitor_id) AS unique_vk_visitors
-FROM sessions
-WHERE lower(source) = 'vk';
-
---Количество уникальных пользователей Yandex
-SELECT count(DISTINCT visitor_id) AS unique_yandex_visitors
-FROM sessions
-WHERE lower(source) = 'yandex';
-
---Сколько лидов приходит в общем 
-SELECT count(DISTINCT lead_id) AS leads_count
-FROM leads;
-
---Сколько лидов приходит для VK и Yandex?
-SELECT
-    lower(s.source) AS utm_source,
-    count(DISTINCT l.lead_id) AS leads_count
-FROM leads AS l
-INNER JOIN sessions AS s ON l.visitor_id = s.visitor_id
-WHERE lower(s.source) IN ('vk', 'yandex')
-GROUP BY lower(s.source)
-ORDER BY leads_count DESC;
-
---Конверсия Клик-Лид-продажа
-WITH visitors_count AS (
-    SELECT count(DISTINCT visitor_id) AS total_visitors
-    FROM sessions
-),
-
-leads_stats AS (
+WITH u AS (
     SELECT
-        count(DISTINCT l.lead_id) AS total_leads,
-        count(DISTINCT l.lead_id) FILTER (
-            WHERE l.closing_reason = 'Успешная продажа'
-        ) AS successful_sales
-    FROM leads AS l
+        LOWER(source) AS channel,
+        COUNT(DISTINCT visitor_id) AS visitors_count
+    FROM sessions
+    WHERE LOWER(source) IN ('vk', 'yandex')
+    GROUP BY LOWER(source)
 )
 
 SELECT
-    'Visitors' AS funnel_stage,
-    v.total_visitors AS metric_value
-FROM visitors_count AS v
-UNION ALL
-SELECT
-    'Leads' AS funnel_stage,
-    ls.total_leads AS metric_value
-FROM leads_stats AS ls
-UNION ALL
-SELECT
-    'Successful sales' AS funnel_stage,
-    ls.successful_sales AS metric_value
-FROM leads_stats AS ls;
-
---Конверсия Клик-Лид-Продажа для VK и Yandex 
-WITH filtered_visitors AS (
-    SELECT DISTINCT
-        s.visitor_id,
-        lower(s.source) AS channel
-    FROM sessions AS s
-    WHERE lower(s.source) IN ('vk', 'yandex')
-),
-
-leads_stats AS (
+    c.channel,
+    ROUND(c.total_cost::numeric / NULLIF(u.visitors_count, 0), 2) AS cpu
+FROM (
     SELECT
-        f.channel,
-        count(DISTINCT l.lead_id) AS total_leads,
-        count(DISTINCT l.lead_id) FILTER (
-            WHERE l.closing_reason = 'Успешная продажа'
-        ) AS successful_sales
+        'vk' AS channel,
+        SUM(daily_spent) AS total_cost
+    FROM vk_ads
+    UNION ALL
+    SELECT
+        'yandex' AS channel,
+        SUM(daily_spent) AS total_cost
+    FROM ya_ads
+) AS c
+INNER JOIN u
+    ON c.channel = u.channel;
+
+
+--CPL (cтоимость 1 лида = рекламные затраты / количество лидов)
+
+SELECT
+    c.channel,
+    ROUND(c.total_cost::numeric / NULLIF(l.leads_count, 0), 2) AS cpl
+FROM (
+    SELECT
+        'vk' AS channel,
+        SUM(daily_spent) AS total_cost
+    FROM vk_ads
+    UNION ALL
+    SELECT
+        'yandex' AS channel,
+        SUM(daily_spent) AS total_cost
+    FROM ya_ads
+) AS c
+INNER JOIN (
+    SELECT
+        LOWER(s.source) AS channel,
+        COUNT(DISTINCT l.lead_id) AS leads_count
     FROM leads AS l
-    INNER JOIN filtered_visitors AS f
-        ON l.visitor_id = f.visitor_id
-    GROUP BY f.channel
-),
+    INNER JOIN sessions AS s ON l.visitor_id = s.visitor_id
+    WHERE LOWER(s.source) IN ('vk', 'yandex')
+    GROUP BY LOWER(s.source)
+) AS l
+    ON c.channel = l.channel;
 
-visitors_count AS (
-    SELECT
-        lower(source) AS channel,
-        count(DISTINCT visitor_id) AS total_visitors
-    FROM sessions
-    WHERE lower(source) IN ('vk', 'yandex')
-    GROUP BY lower(source)
-),
 
-funnel_raw AS (
-    SELECT
-        v.channel,
-        'Visitors' AS funnel_stage,
-        v.total_visitors AS metric_value
-    FROM visitors_count AS v
-    UNION ALL
-    SELECT
-        l.channel,
-        'Leads' AS funnel_stage,
-        l.total_leads AS metric_value
-    FROM leads_stats AS l
-    UNION ALL
-    SELECT
-        l.channel,
-        'Successful sales' AS funnel_stage,
-        l.successful_sales AS metric_value
-    FROM leads_stats AS l
-)
+  /*CPPU (cтоимость 1 покупателя = 
+рекламные затраты / количество оплаченных сделок)*/
 
-SELECT *
-FROM funnel_raw
-ORDER BY
-    channel,
-    CASE stage
-        WHEN 'Visitors' THEN 1
-        WHEN 'Leads' THEN 2
-        WHEN 'Successful sales' THEN 3
-    END;
-END;
-
---Доходы по всем источникам
 SELECT
-    lower(s.source) AS utm_source,
-    sum(l.amount) AS total_revenue
-FROM sessions AS s
-INNER JOIN leads AS l ON s.visitor_id = l.visitor_id
-WHERE l.status_id = 142 OR l.closing_reason = 'Успешно реализовано'
-GROUP BY lower(s.source)
-ORDER BY total_revenue DESC;
+    c.channel,
+    ROUND(c.total_cost::numeric / NULLIF(p.purchases_count, 0), 2) AS cppu
+FROM (
+    SELECT 'vk' AS channel, SUM(daily_spent) AS total_cost FROM vk_ads
+    UNION ALL
+    SELECT 'yandex' AS channel, SUM(daily_spent) AS total_cost FROM ya_ads
+) c
+JOIN (
+    SELECT LOWER(s.source) AS channel,
+           COUNT(DISTINCT l.lead_id) AS purchases_count
+    FROM leads l
+    JOIN sessions s ON l.visitor_id = s.visitor_id
+    WHERE LOWER(s.source) IN ('vk','yandex')
+      AND (l.closing_reason = 'Успешно реализовано' OR l.status_id = 142)
+    GROUP BY LOWER(s.source)
+) p
+  ON c.channel = p.channel;
 
---Доходы по источникам VK и Yandex
+  ROI (Return on Investment)
+
+--ROI = (Выручка − Затраты) / Затраты
+
 SELECT
-    CASE
-        WHEN lower(s.source) LIKE '%vk%' THEN 'vk'
-        WHEN
-            lower(s.source) LIKE '%ya%' OR lower(s.source) LIKE '%yandex%'
-            THEN 'yandex'
-    END AS utm_source,
-    sum(l.amount) AS total_revenue
-FROM sessions AS s
-INNER JOIN leads AS l ON s.visitor_id = l.visitor_id
-WHERE
-    (
-        lower(s.source) LIKE '%vk%'
-        OR lower(s.source) LIKE '%ya%'
-        OR lower(s.source) LIKE '%yandex%'
-    )
-    AND (l.status_id = 142 OR l.closing_reason = 'Успешно реализовано')
-GROUP BY utm_source;
-
---Расходы по источникам VK и Yandex
-SELECT
-    utm_source,
-    sum(daily_spent) AS total_spent
+    c.channel,
+    ROUND((revenue - c.total_cost)::numeric / NULLIF(c.total_cost, 0), 4) AS roi
 FROM (
-    SELECT
-        utm_source,
-        daily_spent
-    FROM ya_ads
+    SELECT 'vk' AS channel, SUM(daily_spent) AS total_cost FROM vk_ads
     UNION ALL
-    SELECT
-        utm_source,
-        daily_spent
-    FROM vk_ads
-) AS ads
-GROUP BY utm_source;
-
---Расходы на VK и Yandex в динамике (по датам)
-SELECT
-    campaign_date,
-    utm_source,
-    sum(daily_spent) AS total_spent
-FROM (
-    SELECT
-        campaign_date,
-        utm_source,
-        daily_spent
-    FROM ya_ads
-    UNION ALL
-    SELECT
-        campaign_date,
-        utm_source,
-        daily_spent
-    FROM vk_ads
-) AS all_ads
-GROUP BY campaign_date, utm_source
-ORDER BY campaign_date, utm_source;
-
-/*ROI = (revenue - total_cost) / total_cost * 100%
-ROI = (8752676 - 6428804)/6428804 * 100 = 36,15%
-ROI VK=(2196731 - 745006)/745006 * 100 = ROI ≈ 194.86%
-ROI Yandex=(6555945 - 5683798)/5683798 * 100 = ROI ≈ 15.34%*/
-
---CPU (стоимость 1 пользователя для VK и Yandex) = total_cost / visitors_count
-SELECT sum(daily_spent) AS total_cost
-FROM (
-    SELECT daily_spent FROM ya_ads
-    UNION ALL
-    SELECT daily_spent FROM vk_ads
-) AS all_ads;
-
-SELECT count(DISTINCT visitor_id) AS visitors_count
-FROM sessions;
-
---CPL (стоимость 1 лида для VK и Yandex) = total_cost / leads_count
-SELECT sum(daily_spent) AS total_cost
-FROM (
-    SELECT daily_spent FROM ya_ads
-    UNION ALL
-    SELECT daily_spent FROM vk_ads
-) AS all_ads;
-
-SELECT count(DISTINCT lead_id) AS leads_count
-FROM leads;
-
---CPPU (стоимость 1 покупателя для VK и Yandex) = total_cost / purchases_count
-SELECT sum(daily_spent) AS total_cost
-FROM (
-    SELECT daily_spent FROM ya_ads
-    UNION ALL
-    SELECT daily_spent FROM vk_ads
-) AS all_ads;
-
-SELECT count(DISTINCT lead_id) AS purchases_count
-FROM leads
-WHERE
-    closing_reason = 'Успешно реализовано'
-    OR status_id = 142;
+    SELECT 'yandex' AS channel, SUM(daily_spent) AS total_cost FROM ya_ads
+) c
+JOIN (
+    SELECT LOWER(s.source) AS channel,
+           SUM(l.amount) AS revenue
+    FROM leads l
+    JOIN sessions s ON l.visitor_id = s.visitor_id
+    WHERE LOWER(s.source) IN ('vk','yandex')
+      AND (l.closing_reason = 'Успешно реализовано' OR l.status_id = 142)
+    GROUP BY LOWER(s.source)
+) r
+  ON c.channel = r.channel;
