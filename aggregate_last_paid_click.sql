@@ -1,4 +1,4 @@
-WITH visitors_with_leads AS (
+WITH leads_ranked AS (
     SELECT
         l.lead_id,
         l.closing_reason,
