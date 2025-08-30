@@ -1,5 +1,4 @@
-/*CPU (cтоимость 1 уникального пользователя =
-рекламные затраты / уникальные пользователи)*/
+--CPU = total_cost / visitors_count
 WITH u AS (
     SELECT
         LOWER(source) AS channel,
@@ -26,7 +25,7 @@ FROM (
 INNER JOIN u
     ON c.channel = u.channel;
 
---CPL (cтоимость 1 лида = рекламные затраты / количество лидов)
+--CPL = total_cost / leads_count
 SELECT
     c.channel,
     ROUND(c.total_cost::numeric / NULLIF(l.leads_count, 0), 2) AS cpl
@@ -52,8 +51,7 @@ INNER JOIN (
 ) AS l
     ON c.channel = l.channel;
 
-/*CPPU (cтоимость 1 покупателя =
-рекламные затраты / количество оплаченных сделок)*/
+--CPPU = total_cost / purchases_count
 WITH p AS (
     SELECT
         LOWER(s.source) AS channel,
@@ -84,13 +82,14 @@ FROM (
 INNER JOIN p
     ON c.channel = p.channel;
 
---ROI = (Выручка − Затраты) / Затраты
+--ROI = (revenue - total_cost) / total_cost
 WITH r AS (
     SELECT
         LOWER(s.source) AS channel,
         SUM(l.amount) AS revenue
     FROM leads AS l
-    INNER JOIN sessions AS s ON l.visitor_id = s.visitor_id
+    INNER JOIN sessions AS s
+        ON l.visitor_id = s.visitor_id
     WHERE
         LOWER(s.source) IN ('vk', 'yandex')
         AND (l.closing_reason = 'Успешно реализовано' OR l.status_id = 142)
@@ -99,7 +98,8 @@ WITH r AS (
 
 SELECT
     c.channel,
-    ROUND((revenue - c.total_cost)::numeric / NULLIF(c.total_cost, 0), 4) AS roi
+    ROUND((r.revenue - c.total_cost)::numeric / NULLIF(c.total_cost, 0), 4)
+        AS roi
 FROM (
     SELECT
         'vk' AS channel,
