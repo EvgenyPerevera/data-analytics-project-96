@@ -1,4 +1,4 @@
-WITH leads_ranked AS (
+WITH visitors_with_leads AS (
     SELECT
         l.lead_id,
         l.closing_reason,
@@ -91,3 +91,4 @@ ORDER BY
     lj.utm_medium ASC,
     lj.utm_campaign ASC
 LIMIT 15;
+
