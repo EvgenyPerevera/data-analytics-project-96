@@ -1,6 +1,5 @@
-/*CPU (cтоимость 1 уникального пользователя = 
+/*CPU (cтоимость 1 уникального пользователя =
 рекламные затраты / уникальные пользователи)*/
-
 WITH u AS (
     SELECT
         LOWER(source) AS channel,
@@ -27,9 +26,7 @@ FROM (
 INNER JOIN u
     ON c.channel = u.channel;
 
-
 --CPL (cтоимость 1 лида = рекламные затраты / количество лидов)
-
 SELECT
     c.channel,
     ROUND(c.total_cost::numeric / NULLIF(l.leads_count, 0), 2) AS cpl
@@ -55,10 +52,8 @@ INNER JOIN (
 ) AS l
     ON c.channel = l.channel;
 
-
-  /*CPPU (cтоимость 1 покупателя = 
+/*CPPU (cтоимость 1 покупателя =
 рекламные затраты / количество оплаченных сделок)*/
-
 SELECT
     c.channel,
     ROUND(c.total_cost::numeric / NULLIF(p.purchases_count, 0), 2) AS cppu
@@ -74,14 +69,14 @@ JOIN (
     JOIN sessions s ON l.visitor_id = s.visitor_id
     WHERE LOWER(s.source) IN ('vk','yandex')
       AND (l.closing_reason = 'Успешно реализовано' OR l.status_id = 142)
-    GROUP BY LOWER(s.source)
+    GROUP BY
+        LOWER(s.source)
 ) p
   ON c.channel = p.channel;
 
   ROI (Return on Investment)
 
 --ROI = (Выручка − Затраты) / Затраты
-
 SELECT
     c.channel,
     ROUND((revenue - c.total_cost)::numeric / NULLIF(c.total_cost, 0), 4) AS roi
@@ -100,3 +95,4 @@ JOIN (
     GROUP BY LOWER(s.source)
 ) r
   ON c.channel = r.channel;
+
