@@ -113,4 +113,3 @@ FROM (
 ) AS c
 INNER JOIN r
     ON c.channel = r.channel;
-
