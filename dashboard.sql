@@ -99,7 +99,7 @@ WITH r AS (
 SELECT
     c.channel,
     ROUND((r.revenue - c.total_cost)::numeric / NULLIF(c.total_cost, 0), 4)
-        AS roi
+    AS roi
 FROM (
     SELECT
         'vk' AS channel,
@@ -113,3 +113,4 @@ FROM (
 ) AS c
 INNER JOIN r
     ON c.channel = r.channel;
+
