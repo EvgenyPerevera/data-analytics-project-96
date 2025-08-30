@@ -91,4 +91,3 @@ ORDER BY
     lj.utm_medium ASC,
     lj.utm_campaign ASC
 LIMIT 15;
-
